@@ -2,43 +2,26 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import matplotlib.pyplot as plt
 
+from signal_operations import (
+    read_signal,
+    add_signals,
+    subtract_signals,
+    multiply_signal,
+    shift_signal,
+    fold_signal
+)
 
 
+# =========================================================
+# SIGNALS
+# =========================================================
 
-def read_signal(file_name):
-
-
-    indices = []
-    samples = []
-
-    with open(file_name, "r") as file:
-
-        # Skip the first 3 lines
-        file.readline()
-        file.readline()
-        file.readline()
-
-        # Read samples
-        line = file.readline()
-
-        while line:
-
-            parts = line.strip().split()
-
-            if len(parts) == 2:
-
-                index = int(parts[0])
-                value = float(parts[1])
-
-                indices.append(index)
-                samples.append(value)
-
-            line = file.readline()
-
-    return indices, samples
+signals = []
 
 
-
+# =========================================================
+# DISPLAY SIGNAL
+# =========================================================
 
 def display_signal(indices, samples, title):
 
@@ -58,10 +41,9 @@ def display_signal(indices, samples, title):
     plt.show()
 
 
-
-signals = []
-
-
+# =========================================================
+# LOAD SIGNAL
+# =========================================================
 
 def load_signal():
 
@@ -106,6 +88,9 @@ def load_signal():
         )
 
 
+# =========================================================
+# DISPLAY SELECTED SIGNAL
+# =========================================================
 
 def show_selected_signal():
 
@@ -129,8 +114,11 @@ def show_selected_signal():
     )
 
 
+# =========================================================
+# ADD SIGNALS
+# =========================================================
 
-def add_signals():
+def add_selected_signals():
 
     selected = signal_list.curselection()
 
@@ -143,37 +131,13 @@ def add_signals():
 
         return
 
-    result = {}
+    signal1 = signals[selected[0]]
+    signal2 = signals[selected[1]]
 
-
-    for position in selected:
-
-        signal = signals[position]
-
-
-        for index, value in zip(
-                signal["indices"],
-                signal["samples"]):
-
-            if index in result:
-
-                result[index] += value
-
-            else:
-
-                result[index] = value
-
-
-    indices = sorted(result.keys())
-
-    # Get values in the same order
-    samples = []
-
-    for index in indices:
-
-        samples.append(
-            result[index]
-        )
+    indices, samples = add_signals(
+        signal1,
+        signal2
+    )
 
     display_signal(
         indices,
@@ -182,8 +146,43 @@ def add_signals():
     )
 
 
+# =========================================================
+# SUBTRACT SIGNALS
+# =========================================================
 
-def multiply_signal():
+def subtract_selected_signals():
+
+    selected = signal_list.curselection()
+
+    if len(selected) != 2:
+
+        messagebox.showwarning(
+            "Warning",
+            "Please select exactly two signals."
+        )
+
+        return
+
+    signal1 = signals[selected[0]]
+    signal2 = signals[selected[1]]
+
+    indices, samples = subtract_signals(
+        signal1,
+        signal2
+    )
+
+    display_signal(
+        indices,
+        samples,
+        "Subtraction Result"
+    )
+
+
+# =========================================================
+# MULTIPLY SIGNAL
+# =========================================================
+
+def multiply_selected_signal():
 
     selected = signal_list.curselection()
 
@@ -213,15 +212,10 @@ def multiply_signal():
 
     signal = signals[selected[0]]
 
-    indices = signal["indices"].copy()
-
-    samples = []
-
-    for value in signal["samples"]:
-
-        samples.append(
-            value * constant
-        )
+    indices, samples = multiply_signal(
+        signal,
+        constant
+    )
 
     display_signal(
         indices,
@@ -230,63 +224,11 @@ def multiply_signal():
     )
 
 
+# =========================================================
+# SHIFT SIGNAL
+# =========================================================
 
-def subtract_signals():
-
-    selected = signal_list.curselection()
-
-    if len(selected) != 2:
-
-        messagebox.showwarning(
-            "Warning",
-            "Please select exactly two signals."
-        )
-
-        return
-
-    signal1 = signals[selected[0]]
-    signal2 = signals[selected[1]]
-
-    result = {}
-
-    # First signal
-    for index, value in zip(
-            signal1["indices"],
-            signal1["samples"]):
-
-        result[index] = value
-
-    # Subtract second signal
-    for index, value in zip(
-            signal2["indices"],
-            signal2["samples"]):
-
-        if index in result:
-
-            result[index] -= value
-
-        else:
-
-            result[index] = -value
-
-    indices = sorted(result.keys())
-
-    samples = []
-
-    for index in indices:
-
-        samples.append(
-            result[index]
-        )
-
-    display_signal(
-        indices,
-        samples,
-        "Subtraction Result"
-    )
-
-
-def shift_signal():
+def shift_selected_signal():
 
     selected = signal_list.curselection()
 
@@ -316,23 +258,10 @@ def shift_signal():
 
     signal = signals[selected[0]]
 
-    indices = []
-
-    # -----------------------------------------------------
-    # x[n + k]
-    #
-    # k = +3  -> advance 3 -> move LEFT
-    #
-    # k = -3  -> delay 3   -> move RIGHT
-    # -----------------------------------------------------
-
-    for index in signal["indices"]:
-
-        indices.append(
-            index - k
-        )
-
-    samples = signal["samples"].copy()
+    indices, samples = shift_signal(
+        signal,
+        k
+    )
 
     display_signal(
         indices,
@@ -341,8 +270,11 @@ def shift_signal():
     )
 
 
+# =========================================================
+# FOLD SIGNAL
+# =========================================================
 
-def fold_signal():
+def fold_selected_signal():
 
     selected = signal_list.curselection()
 
@@ -357,31 +289,20 @@ def fold_signal():
 
     signal = signals[selected[0]]
 
-    new_indices = []
-    new_samples = []
-
-    # x[-n]
-    for i in range(
-            len(signal["indices"]) - 1,
-            -1,
-            -1):
-
-        new_indices.append(
-            -signal["indices"][i]
-        )
-
-        new_samples.append(
-            signal["samples"][i]
-        )
+    indices, samples = fold_signal(
+        signal
+    )
 
     display_signal(
-        new_indices,
-        new_samples,
+        indices,
+        samples,
         "Folded Signal x[-n]"
     )
 
-#=======================Gui===========================
 
+# =========================================================
+# GUI
+# =========================================================
 
 root = tk.Tk()
 
@@ -394,6 +315,9 @@ root.geometry(
 )
 
 
+# =========================================================
+# TITLE
+# =========================================================
 
 title = tk.Label(
     root,
@@ -413,6 +337,9 @@ subtitle = tk.Label(
 subtitle.pack(pady=5)
 
 
+# =========================================================
+# LOAD
+# =========================================================
 
 load_button = tk.Button(
     root,
@@ -424,6 +351,9 @@ load_button = tk.Button(
 load_button.pack(pady=8)
 
 
+# =========================================================
+# SIGNAL LIST
+# =========================================================
 
 list_label = tk.Label(
     root,
@@ -444,6 +374,9 @@ signal_list = tk.Listbox(
 signal_list.pack(pady=5)
 
 
+# =========================================================
+# DISPLAY
+# =========================================================
 
 display_button = tk.Button(
     root,
@@ -455,28 +388,37 @@ display_button = tk.Button(
 display_button.pack(pady=6)
 
 
+# =========================================================
+# ADDITION
+# =========================================================
 
 add_button = tk.Button(
     root,
     text="Add Selected Signals",
     width=30,
-    command=add_signals
+    command=add_selected_signals
 )
 
 add_button.pack(pady=6)
 
 
+# =========================================================
+# SUBTRACTION
+# =========================================================
 
 subtract_button = tk.Button(
     root,
     text="Subtract Two Signals",
     width=30,
-    command=subtract_signals
+    command=subtract_selected_signals
 )
 
 subtract_button.pack(pady=6)
 
 
+# =========================================================
+# MULTIPLICATION
+# =========================================================
 
 constant_label = tk.Label(
     root,
@@ -498,7 +440,7 @@ multiply_button = tk.Button(
     root,
     text="Multiply Signal",
     width=30,
-    command=multiply_signal
+    command=multiply_selected_signal
 )
 
 multiply_button.pack(pady=6)
@@ -528,7 +470,7 @@ shift_button = tk.Button(
     root,
     text="Shift Signal",
     width=30,
-    command=shift_signal
+    command=shift_selected_signal
 )
 
 shift_button.pack(pady=6)
@@ -542,7 +484,7 @@ fold_button = tk.Button(
     root,
     text="Fold / Reverse Signal",
     width=30,
-    command=fold_signal
+    command=fold_selected_signal
 )
 
 fold_button.pack(pady=6)
