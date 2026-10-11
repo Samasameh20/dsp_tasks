@@ -1,5 +1,8 @@
+
+import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
+
 import matplotlib.pyplot as plt
 
 from signal_operations import (
@@ -8,71 +11,116 @@ from signal_operations import (
     subtract_signals,
     multiply_signal,
     shift_signal,
-    fold_signal
+    fold_signal,
+    generate_signal
 )
 
 
 # =========================================================
-# SIGNALS
+# SIGNAL STORAGE
 # =========================================================
 
 signals = []
 
 
 # =========================================================
-# DISPLAY SIGNAL
+# DISPLAY SIGNALS
 # =========================================================
 
-def display_signal(indices, samples, title):
+def display_signals(selected_signals):
 
-    plt.figure(figsize=(8, 5))
+    if not selected_signals:
+        messagebox.showwarning(
+            "Warning",
+            "Please select at least one signal."
+        )
+        return
 
-    plt.stem(indices, samples)
+    mode = display_mode.get()
 
-    plt.xlabel("n")
-    plt.ylabel("Amplitude")
+    fig, ax = plt.subplots(figsize=(9, 5))
 
-    plt.title(title)
+    for signal in selected_signals:
 
-    plt.grid(True)
+        indices = signal["indices"]
+        samples = signal["samples"]
+        name = signal["name"]
 
-    plt.axhline(0, color="black", linewidth=0.8)
+        if mode == "Continuous":
 
+            ax.plot(
+                indices,
+                samples,
+                marker="o",
+                label=name
+            )
+
+        else:
+
+            markerline, stemlines, baseline = ax.stem(
+                indices,
+                samples,
+                label=name
+            )
+
+    ax.set_xlabel("Index n")
+    ax.set_ylabel("Amplitude")
+    ax.set_title("Signal Display")
+    ax.grid(True)
+    ax.axhline(0, color="black", linewidth=0.8)
+    ax.legend()
+
+    plt.tight_layout()
     plt.show()
 
 
 # =========================================================
-# LOAD SIGNAL
+# SAVE RESULT IN SIGNAL LIST
+# =========================================================
+
+def save_result(indices, samples, name):
+
+    result = {
+        "name": name,
+        "indices": indices,
+        "samples": samples
+    }
+
+    signals.append(result)
+
+    signal_list.insert(tk.END, name)
+
+    return result
+
+
+# =========================================================
+# LOAD SIGNAL FROM FILE
 # =========================================================
 
 def load_signal():
 
     file_name = filedialog.askopenfilename(
         title="Select Signal File",
-        filetypes=[
-            ("Text Files", "*.txt")
-        ]
+        filetypes=[("Text Files", "*.txt")]
     )
 
-    if file_name == "":
+    if not file_name:
         return
 
     try:
 
         indices, samples = read_signal(file_name)
 
-        signal = {
-            "name": file_name.split("/")[-1],
-            "indices": indices,
-            "samples": samples
-        }
+        if not indices:
+            messagebox.showerror(
+                "Error",
+                "No valid signal samples were found."
+            )
+            return
 
-        signals.append(signal)
+        name = os.path.basename(file_name)
 
-        signal_list.insert(
-            tk.END,
-            signal["name"]
-        )
+        save_result(indices, samples, name)
 
         messagebox.showinfo(
             "Success",
@@ -83,35 +131,40 @@ def load_signal():
 
         messagebox.showerror(
             "Error",
-            "Could not read the signal:\n"
-            + str(error)
+            "Could not read the signal:\n" + str(error)
         )
 
 
 # =========================================================
-# DISPLAY SELECTED SIGNAL
+# GET SELECTED SIGNALS
 # =========================================================
 
-def show_selected_signal():
+def get_selected_signals():
 
     selected = signal_list.curselection()
 
-    if len(selected) != 1:
+    return [
+        signals[position]
+        for position in selected
+    ]
 
+
+# =========================================================
+# DISPLAY SELECTED SIGNAL(S)
+# =========================================================
+
+def show_selected_signals():
+
+    selected = get_selected_signals()
+
+    if len(selected) > 2:
         messagebox.showwarning(
             "Warning",
-            "Please select one signal."
+            "Select one or two signals to display."
         )
-
         return
 
-    signal = signals[selected[0]]
-
-    display_signal(
-        signal["indices"],
-        signal["samples"],
-        signal["name"]
-    )
+    display_signals(selected)
 
 
 # =========================================================
@@ -120,30 +173,24 @@ def show_selected_signal():
 
 def add_selected_signals():
 
-    selected = signal_list.curselection()
+    selected = get_selected_signals()
 
     if len(selected) < 2:
-
         messagebox.showwarning(
             "Warning",
-            "Please select at least two signals."
+            "Select at least two signals."
         )
-
         return
 
-    signal1 = signals[selected[0]]
-    signal2 = signals[selected[1]]
+    indices, samples = add_signals(*selected)
 
-    indices, samples = add_signals(
-        signal1,
-        signal2
-    )
-
-    display_signal(
+    result = save_result(
         indices,
         samples,
         "Addition Result"
     )
+
+    display_signals([result])
 
 
 # =========================================================
@@ -152,30 +199,27 @@ def add_selected_signals():
 
 def subtract_selected_signals():
 
-    selected = signal_list.curselection()
+    selected = get_selected_signals()
 
     if len(selected) != 2:
-
         messagebox.showwarning(
             "Warning",
-            "Please select exactly two signals."
+            "Select exactly two signals."
         )
-
         return
 
-    signal1 = signals[selected[0]]
-    signal2 = signals[selected[1]]
-
     indices, samples = subtract_signals(
-        signal1,
-        signal2
+        selected[0],
+        selected[1]
     )
 
-    display_signal(
+    result = save_result(
         indices,
         samples,
         "Subtraction Result"
     )
+
+    display_signals([result])
 
 
 # =========================================================
@@ -184,44 +228,37 @@ def subtract_selected_signals():
 
 def multiply_selected_signal():
 
-    selected = signal_list.curselection()
+    selected = get_selected_signals()
 
     if len(selected) != 1:
-
         messagebox.showwarning(
             "Warning",
-            "Please select one signal."
+            "Select exactly one signal."
         )
-
         return
 
     try:
-
-        constant = float(
-            constant_entry.get()
-        )
+        constant = float(constant_entry.get())
 
     except ValueError:
-
         messagebox.showerror(
             "Error",
-            "Please enter a valid number."
+            "Enter a valid multiplication constant."
         )
-
         return
 
-    signal = signals[selected[0]]
-
     indices, samples = multiply_signal(
-        signal,
+        selected[0],
         constant
     )
 
-    display_signal(
+    result = save_result(
         indices,
         samples,
         "Multiplication Result"
     )
+
+    display_signals([result])
 
 
 # =========================================================
@@ -230,44 +267,37 @@ def multiply_selected_signal():
 
 def shift_selected_signal():
 
-    selected = signal_list.curselection()
+    selected = get_selected_signals()
 
     if len(selected) != 1:
-
         messagebox.showwarning(
             "Warning",
-            "Please select one signal."
+            "Select exactly one signal."
         )
-
         return
 
     try:
-
-        k = int(
-            shift_entry.get()
-        )
+        k = int(shift_entry.get())
 
     except ValueError:
-
         messagebox.showerror(
             "Error",
-            "Please enter an integer."
+            "Enter an integer for k."
         )
-
         return
 
-    signal = signals[selected[0]]
-
     indices, samples = shift_signal(
-        signal,
+        selected[0],
         k
     )
 
-    display_signal(
+    result = save_result(
         indices,
         samples,
-        "Shifted Signal"
+        "Shift Result"
     )
+
+    display_signals([result])
 
 
 # =========================================================
@@ -276,222 +306,319 @@ def shift_selected_signal():
 
 def fold_selected_signal():
 
-    selected = signal_list.curselection()
+    selected = get_selected_signals()
 
     if len(selected) != 1:
-
         messagebox.showwarning(
             "Warning",
-            "Please select one signal."
+            "Select exactly one signal."
         )
-
         return
 
-    signal = signals[selected[0]]
+    indices, samples = fold_signal(selected[0])
 
-    indices, samples = fold_signal(
-        signal
-    )
-
-    display_signal(
+    result = save_result(
         indices,
         samples,
-        "Folded Signal x[-n]"
+        "Folded Signal"
     )
+
+    display_signals([result])
 
 
 # =========================================================
-# GUI
+# GENERATE SINE OR COSINE
+# =========================================================
+
+def generate_selected_signal(signal_type):
+
+    try:
+
+        amplitude = float(amplitude_entry.get())
+        phase = float(phase_entry.get())
+        frequency = float(frequency_entry.get())
+        sampling_frequency = float(
+            sampling_frequency_entry.get()
+        )
+        duration = float(duration_entry.get())
+
+        indices, samples = generate_signal(
+            signal_type,
+            amplitude,
+            phase,
+            frequency,
+            sampling_frequency,
+            duration
+        )
+
+        name = (
+            signal_type.capitalize()
+            + " A=" + str(amplitude)
+            + " f=" + str(frequency)
+        )
+
+        result = save_result(
+            indices,
+            samples,
+            name
+        )
+
+        display_signals([result])
+
+    except ValueError as error:
+
+        messagebox.showerror(
+            "Invalid Input",
+            str(error)
+        )
+
+
+# =========================================================
+# GUI WINDOW
 # =========================================================
 
 root = tk.Tk()
 
-root.title(
-    "Digital Signal Processing - Task 1"
+root.title("Digital Signal Processing - Task 2")
+root.geometry("700x900")
+
+
+# =========================================================
+# MENU
+# =========================================================
+
+menu_bar = tk.Menu(root)
+
+generation_menu = tk.Menu(
+    menu_bar,
+    tearoff=0
 )
 
-root.geometry(
-    "600x700"
+generation_menu.add_command(
+    label="Sine Wave",
+    command=lambda: generate_selected_signal("sine")
 )
+
+generation_menu.add_command(
+    label="Cosine Wave",
+    command=lambda: generate_selected_signal("cosine")
+)
+
+menu_bar.add_cascade(
+    label="Signal Generation",
+    menu=generation_menu
+)
+
+root.config(menu=menu_bar)
 
 
 # =========================================================
 # TITLE
 # =========================================================
 
-title = tk.Label(
+tk.Label(
     root,
     text="Digital Signal Processing",
     font=("Arial", 20, "bold")
-)
+).pack(pady=10)
 
-title.pack(pady=15)
-
-
-subtitle = tk.Label(
+tk.Label(
     root,
-    text="Signal Processing Task 1",
+    text="Task 1 + Task 2",
     font=("Arial", 12)
-)
-
-subtitle.pack(pady=5)
+).pack(pady=5)
 
 
 # =========================================================
-# LOAD
+# LOAD SIGNAL
 # =========================================================
 
-load_button = tk.Button(
+tk.Button(
     root,
-    text="Load Signal",
+    text="Load Signal from File",
     width=30,
     command=load_signal
-)
-
-load_button.pack(pady=8)
+).pack(pady=6)
 
 
 # =========================================================
 # SIGNAL LIST
 # =========================================================
 
-list_label = tk.Label(
+tk.Label(
     root,
-    text="Loaded Signals:",
+    text="Loaded and Generated Signals",
     font=("Arial", 11, "bold")
-)
-
-list_label.pack(pady=5)
-
+).pack(pady=5)
 
 signal_list = tk.Listbox(
     root,
-    width=50,
-    height=8,
-    selectmode=tk.MULTIPLE
+    width=65,
+    height=7,
+    selectmode=tk.MULTIPLE,
+    exportselection=False
 )
 
 signal_list.pack(pady=5)
 
 
 # =========================================================
-# DISPLAY
+# DISPLAY MODE
 # =========================================================
 
-display_button = tk.Button(
+tk.Label(
     root,
-    text="Display Selected Signal",
-    width=30,
-    command=show_selected_signal
+    text="Display Representation:"
+).pack(pady=3)
+
+display_mode = tk.StringVar(value="Discrete")
+
+mode_menu = tk.OptionMenu(
+    root,
+    display_mode,
+    "Discrete",
+    "Continuous"
 )
 
-display_button.pack(pady=6)
+mode_menu.pack(pady=3)
+
+
+tk.Button(
+    root,
+    text="Display Selected Signal(s)",
+    width=30,
+    command=show_selected_signals
+).pack(pady=5)
 
 
 # =========================================================
-# ADDITION
+# TASK 1 OPERATIONS
 # =========================================================
 
-add_button = tk.Button(
+tk.Button(
     root,
     text="Add Selected Signals",
     width=30,
     command=add_selected_signals
-)
+).pack(pady=4)
 
-add_button.pack(pady=6)
-
-
-# =========================================================
-# SUBTRACTION
-# =========================================================
-
-subtract_button = tk.Button(
+tk.Button(
     root,
     text="Subtract Two Signals",
     width=30,
     command=subtract_selected_signals
-)
-
-subtract_button.pack(pady=6)
+).pack(pady=4)
 
 
-# =========================================================
-# MULTIPLICATION
-# =========================================================
-
-constant_label = tk.Label(
+tk.Label(
     root,
     text="Multiplication Constant:"
-)
+).pack(pady=2)
 
-constant_label.pack(pady=3)
+constant_entry = tk.Entry(root, width=20)
+constant_entry.pack(pady=2)
 
-
-constant_entry = tk.Entry(
-    root,
-    width=20
-)
-
-constant_entry.pack(pady=3)
-
-
-multiply_button = tk.Button(
+tk.Button(
     root,
     text="Multiply Signal",
     width=30,
     command=multiply_selected_signal
-)
-
-multiply_button.pack(pady=6)
+).pack(pady=4)
 
 
-# =========================================================
-# SHIFT
-# =========================================================
-
-shift_label = tk.Label(
+tk.Label(
     root,
     text="Shift k (+ = advance, - = delay):"
-)
+).pack(pady=2)
 
-shift_label.pack(pady=3)
+shift_entry = tk.Entry(root, width=20)
+shift_entry.pack(pady=2)
 
-
-shift_entry = tk.Entry(
-    root,
-    width=20
-)
-
-shift_entry.pack(pady=3)
-
-
-shift_button = tk.Button(
+tk.Button(
     root,
     text="Shift Signal",
     width=30,
     command=shift_selected_signal
-)
+).pack(pady=4)
 
-shift_button.pack(pady=6)
-
-
-# =========================================================
-# FOLDING
-# =========================================================
-
-fold_button = tk.Button(
+tk.Button(
     root,
     text="Fold / Reverse Signal",
     width=30,
     command=fold_selected_signal
-)
-
-fold_button.pack(pady=6)
+).pack(pady=4)
 
 
 # =========================================================
-# START PROGRAM
+# TASK 2: SIGNAL GENERATION INPUTS
+# =========================================================
+
+tk.Label(
+    root,
+    text="Signal Generation Parameters",
+    font=("Arial", 12, "bold")
+).pack(pady=7)
+
+
+tk.Label(
+    root,
+    text="Amplitude A:"
+).pack()
+
+amplitude_entry = tk.Entry(root, width=20)
+amplitude_entry.insert(0, "1")
+amplitude_entry.pack(pady=2)
+
+
+tk.Label(
+    root,
+    text="Phase Shift θ (degrees):"
+).pack()
+
+phase_entry = tk.Entry(root, width=20)
+phase_entry.insert(0, "0")
+phase_entry.pack(pady=2)
+
+
+tk.Label(
+    root,
+    text="Analog Frequency f (Hz):"
+).pack()
+
+frequency_entry = tk.Entry(root, width=20)
+frequency_entry.insert(0, "5")
+frequency_entry.pack(pady=2)
+
+
+tk.Label(
+    root,
+    text="Sampling Frequency fs (Hz):"
+).pack()
+
+sampling_frequency_entry = tk.Entry(root, width=20)
+sampling_frequency_entry.insert(0, "50")
+sampling_frequency_entry.pack(pady=2)
+
+
+tk.Label(
+    root,
+    text="Duration (seconds):"
+).pack()
+
+duration_entry = tk.Entry(root, width=20)
+duration_entry.insert(0, "1")
+duration_entry.pack(pady=2)
+
+
+tk.Label(
+    root,
+    text="Choose Signal Generation from the top menu",
+    font=("Arial", 10, "italic")
+).pack(pady=8)
+
+
+# =========================================================
+# START GUI
 # =========================================================
 
 root.mainloop()
