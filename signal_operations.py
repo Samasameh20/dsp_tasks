@@ -193,11 +193,13 @@ def generate_signal(
 
     indices = list(range(number_of_samples))
     samples = []
+    time = []
 
     for n in indices:
 
         # Time of the current sample
         t = n / sampling_frequency
+        time.append(t)
 
         # Calculate the signal value
         angle = (
@@ -218,4 +220,4 @@ def generate_signal(
 
         samples.append(value)
 
-    return indices, samples
+    return indices, samples, time
