@@ -218,62 +218,62 @@ def generate_signal(
 
 def quantize_signal(signal, levels):
     if not isinstance(levels, int) or levels < 2:
-        raise ValueError("Number of levels must be an integer >= 2.")
+        raise ValueError("Levels must be an integer greater than or equal to 2.")
 
     indices = signal["indices"]
     samples = signal["samples"]
 
     if not samples:
-        raise ValueError("Cannot quantize an empty signal.")
+        raise ValueError("The selected signal has no samples.")
 
     minimum = min(samples)
     maximum = max(samples)
 
-    if minimum == maximum:
-        bits = math.ceil(math.log2(levels))
+    bits = math.ceil(math.log2(levels))
 
+    if minimum == maximum:
         return {
             "indices": indices.copy(),
+            "intervals": [1] * len(samples),
+            "interval_indices": [1] * len(samples),
+            "encoded_signal": ["0" * bits] * len(samples),
             "quantized_samples": samples.copy(),
             "errors": [0.0] * len(samples),
-            "encoded_signal": [
-                format(0, f"0{bits}b")
-                for _ in samples
-            ],
-            "intervals": [0] * len(samples),
             "step_size": 0.0,
         }
 
     step_size = (maximum - minimum) / levels
-    bits = math.ceil(math.log2(levels))
 
-    quantized_samples = []
-    errors = []
-    encoded_signal = []
     interval_indices = []
+    encoded_values = []
+    quantized_values = []
+    errors = []
 
     for sample in samples:
+        # Zero-based index used for encoding.
         interval = int((sample - minimum) / step_size)
-
-        # Include the maximum sample in the last interval.
         interval = min(interval, levels - 1)
+        interval = max(interval, 0)
 
-        lower_bound = minimum + interval * step_size
-        quantized_value = lower_bound + step_size / 2
+        quantized_value = minimum + (interval + 0.5) * step_size
 
-        error = quantized_value - sample
-        binary_code = format(interval, f"0{bits}b")
+        # Test Case 2 expects a one-based interval number.
+        interval_indices.append(interval + 1)
 
-        interval_indices.append(interval)
-        quantized_samples.append(quantized_value)
-        errors.append(error)
-        encoded_signal.append(binary_code)
+        # The binary code represents the zero-based interval.
+        encoded_values.append(format(interval, f"0{bits}b"))
+
+        quantized_values.append(quantized_value)
+
+        # Expected convention: quantized - original.
+        errors.append(quantized_value - sample)
 
     return {
         "indices": indices.copy(),
-        "quantized_samples": quantized_samples,
-        "errors": errors,
-        "encoded_signal": encoded_signal,
         "intervals": interval_indices,
+        "interval_indices": interval_indices,
+        "encoded_signal": encoded_values,
+        "quantized_samples": quantized_values,
+        "errors": errors,
         "step_size": step_size,
     }
