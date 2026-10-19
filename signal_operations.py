@@ -215,3 +215,65 @@ def generate_signal(
         samples.append(value)
 
     return indices, samples, time
+
+def quantize_signal(signal, levels):
+    if not isinstance(levels, int) or levels < 2:
+        raise ValueError("Number of levels must be an integer >= 2.")
+
+    indices = signal["indices"]
+    samples = signal["samples"]
+
+    if not samples:
+        raise ValueError("Cannot quantize an empty signal.")
+
+    minimum = min(samples)
+    maximum = max(samples)
+
+    if minimum == maximum:
+        bits = math.ceil(math.log2(levels))
+
+        return {
+            "indices": indices.copy(),
+            "quantized_samples": samples.copy(),
+            "errors": [0.0] * len(samples),
+            "encoded_signal": [
+                format(0, f"0{bits}b")
+                for _ in samples
+            ],
+            "intervals": [0] * len(samples),
+            "step_size": 0.0,
+        }
+
+    step_size = (maximum - minimum) / levels
+    bits = math.ceil(math.log2(levels))
+
+    quantized_samples = []
+    errors = []
+    encoded_signal = []
+    interval_indices = []
+
+    for sample in samples:
+        interval = int((sample - minimum) / step_size)
+
+        # Include the maximum sample in the last interval.
+        interval = min(interval, levels - 1)
+
+        lower_bound = minimum + interval * step_size
+        quantized_value = lower_bound + step_size / 2
+
+        error = quantized_value - sample
+        binary_code = format(interval, f"0{bits}b")
+
+        interval_indices.append(interval)
+        quantized_samples.append(quantized_value)
+        errors.append(error)
+        encoded_signal.append(binary_code)
+
+    return {
+        "indices": indices.copy(),
+        "quantized_samples": quantized_samples,
+        "errors": errors,
+        "encoded_signal": encoded_signal,
+        "intervals": interval_indices,
+        "step_size": step_size,
+    }
