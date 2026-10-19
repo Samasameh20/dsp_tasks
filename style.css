@@ -1,0 +1,21 @@
+/* Central visual design reference for the Tkinter GUI.
+   Tkinter cannot apply CSS directly; style.py applies this palette. */
+:root {
+  --bg: #F4F7FB;
+  --card: #FFFFFF;
+  --sidebar: #172033;
+  --sidebar-active: #293750;
+  --text: #172033;
+  --muted: #718096;
+  --accent: #4F7DF3;
+  --border: #E2E8F0;
+  --success: #16876D;
+}
+body { background: var(--bg); color: var(--text); font-family: "Segoe UI", sans-serif; }
+.sidebar { background: var(--sidebar); }
+.sidebar .active { background: var(--sidebar-active); }
+.card { background: var(--card); border: 1px solid var(--border); }
+.button-primary { background: var(--accent); color: #FFFFFF; }
+.button-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.muted { color: var(--muted); }
+.status-ready { color: var(--success); }

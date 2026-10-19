@@ -1,3 +1,5 @@
+import math
+
 def read_signal(file_name):
 
     indices = []
@@ -160,3 +162,56 @@ def fold_signal(signal):
         )
 
     return new_indices, new_samples
+
+def generate_signal(
+    signal_type,
+    amplitude,
+    phase_degrees,
+    frequency,
+    sampling_frequency,
+    duration,
+):
+    if amplitude < 0:
+        raise ValueError("Amplitude must be non-negative.")
+
+    if frequency < 0:
+        raise ValueError("Frequency must be non-negative.")
+
+    if sampling_frequency <= 0:
+        raise ValueError("Sampling frequency must be positive.")
+
+    if duration <= 0:
+        raise ValueError("Duration must be positive.")
+
+    if sampling_frequency <= 2 * frequency:
+        raise ValueError(
+            "Sampling frequency must be greater than "
+            "twice the signal frequency."
+        )
+
+    phase_radians = math.radians(phase_degrees)
+
+    number_of_samples = int(sampling_frequency * duration)
+
+    indices = list(range(number_of_samples))
+    time = [n / sampling_frequency for n in indices]
+
+    samples = []
+
+    for t in time:
+        angle = 2 * math.pi * frequency * t + phase_radians
+
+        if signal_type.lower() == "sine":
+            value = amplitude * math.sin(angle)
+
+        elif signal_type.lower() == "cosine":
+            value = amplitude * math.cos(angle)
+
+        else:
+            raise ValueError(
+                "Signal type must be 'sine' or 'cosine'."
+            )
+
+        samples.append(value)
+
+    return indices, samples, time
